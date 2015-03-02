@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 from matplotlib import cm
 
-import astropy.nddata
+from .nddata_compat import NDDataCompat as NDData
 from sunpy.image.transform import affine_transform
 
 import sunpy.io as io
@@ -38,7 +38,7 @@ or something else?)
 * Should 'center' be renamed to 'offset' and crpix1 & 2 be used for 'center'?
 """
 
-class GenericMap(astropy.nddata.NDData):
+class GenericMap(NDData):
     """
     A Generic spatially-aware 2D data array
 
@@ -110,7 +110,7 @@ class GenericMap(astropy.nddata.NDData):
 
     def __init__(self, data, header, **kwargs):
 
-        astropy.nddata.NDData.__init__(self, data, meta=header, **kwargs)
+        super(GenericMap, self).__init__(data, meta=header, **kwargs)
 
         # Correct possibly missing meta keywords
         self._fix_date()
@@ -578,12 +578,13 @@ Dimension:\t [%d, %d]
             Linear transformation rotation matrix.
         order : int 0-5
             Interpolation order to be used. When using scikit-image this parameter
-            is passed into :func:`skimage.transform.warp`.
+            is passed into :func:`skimage.transform.warp` (e.g., 4 corresponds to
+            bi-quartic interpolation).
             When using scipy it is passed into
             :func:`scipy.ndimage.interpolation.affine_transform` where it controls
             the order of the spline.
-            Higher accuracy may be obtained at the cost of performance by using
-            higher values.
+            Faster performance may be obtained at the cost of accuracy by using lower values.
+            Default: 4
         scale : float
             A scale factor for the image, default is no scaling
         image_center : tuple
@@ -598,12 +599,8 @@ Dimension:\t [%d, %d]
         use_scipy : bool
             If True, forces the rotation to use
             :func:`scipy.ndimage.interpolation.affine_transform`, otherwise it
-            uses the :class:`skimage.transform.AffineTransform` class and
-            :func:`skimage.transform.warp`.
-            The function will also automatically fall back to
-            :func:`scipy.ndimage.interpolation.affine_transform` if scikit-image
-            can't be imported.
-            Default: False
+            uses the :func:`skimage.transform.warp`.
+            Default: False, unless scikit-image can't be imported
 
         Returns
         -------
@@ -620,12 +617,9 @@ Dimension:\t [%d, %d]
         This function will remove old CROTA keywords from the header.
         This function will also convert a CDi_j matrix to a PCi_j matrix.
 
-        The scikit-image and scipy affine_transform routines do not use the same algorithm,
-        see :func:`sunpy.image.transform.affine_transform` for details.
-
-        This function is not numerically equalivalent to IDL's rot() see the
-        :func:`sunpy.image.transform.affine_transform` documentation for a
-        detailed description of the differences.
+        See :func:`sunpy.image.transform.affine_transform` for details on the
+        transformations, situations when the underlying data is modified prior to rotation,
+        and differences from IDL's rot().
         """
         if angle is not None and rmatrix is not None:
             raise ValueError("You cannot specify both an angle and a matrix")
